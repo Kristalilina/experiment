@@ -24,6 +24,28 @@ L_INFO = {
 
 DB_FILE = 'experiment.db'
 
+def get_trial_orders(workflows, counter, block_idx, num_products=10):
+    """
+    为一个block的所有商品生成trial顺序。
+    - 两个trial相同（L1/L3/L5）：顺序无意义，直接返回
+    - 两个trial不同（L2/L4）：每个商品独立随机，但同一顺序不超过连续2次
+    """
+    if workflows[0] == workflows[1]:
+        return [list(workflows)] * num_products
+
+    orders = []
+    for product_idx in range(num_products):
+        seed = counter * 1000 + block_idx * 10 + product_idx
+        random.seed(seed)
+        order = list(workflows)
+        random.shuffle(order)
+        # 若已连续2次相同顺序，强制翻转，避免出现连续3次
+        if len(orders) >= 2 and orders[-1] == orders[-2] == order:
+            order = list(reversed(order))
+        orders.append(order)
+    return orders
+
+
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     conn.execute('''
@@ -67,17 +89,9 @@ def login():
         random.shuffle(blocks)
 
         # 为每个block的每个商品预生成trial顺序
-        # 种子 = 被试编号 × 1000 + block序号 × 10 + 商品序号，保证可复现
         blocks_with_trials = []
         for block_idx, (s, l) in enumerate(blocks):
-            workflows = L_INFO[l]['workflows']
-            trial_orders = []
-            for product_idx in range(10):
-                seed = counter * 1000 + block_idx * 10 + product_idx
-                random.seed(seed)
-                order = list(workflows)
-                random.shuffle(order)  # 两个trial相同时shuffle无影响
-                trial_orders.append(order)
+            trial_orders = get_trial_orders(L_INFO[l]['workflows'], counter, block_idx)
             blocks_with_trials.append((s, l, trial_orders))
 
         session['name'] = name
