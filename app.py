@@ -61,13 +61,29 @@ def login():
         counter = get_next_participant_number()
         position = counter % 5
         display_number = counter + 1
+        # 随机打乱5个block的呈现顺序（S+L绑定不变）
         blocks = list(LATIN_SQUARE[position])
         random.seed(counter)
         random.shuffle(blocks)
+
+        # 为每个block的每个商品预生成trial顺序
+        # 种子 = 被试编号 × 1000 + block序号 × 10 + 商品序号，保证可复现
+        blocks_with_trials = []
+        for block_idx, (s, l) in enumerate(blocks):
+            workflows = L_INFO[l]['workflows']
+            trial_orders = []
+            for product_idx in range(10):
+                seed = counter * 1000 + block_idx * 10 + product_idx
+                random.seed(seed)
+                order = list(workflows)
+                random.shuffle(order)  # 两个trial相同时shuffle无影响
+                trial_orders.append(order)
+            blocks_with_trials.append((s, l, trial_orders))
+
         session['name'] = name
         session['display_number'] = display_number
         session['position'] = position
-        session['blocks'] = blocks
+        session['blocks'] = blocks_with_trials
         return redirect(url_for('experiment'))
     return render_template('login.html', error=None)
 
@@ -76,13 +92,13 @@ def experiment():
     if 'name' not in session:
         return redirect(url_for('login'))
     blocks_info = []
-    for i, (s, l) in enumerate(session['blocks']):
+    for i, (s, l, trial_orders) in enumerate(session['blocks']):
         blocks_info.append({
             'block_num': i + 1,
             'set': s,
             'level': l,
             'level_label': L_INFO[l]['label'],
-            'workflows': L_INFO[l]['workflows'],
+            'trial_orders': trial_orders,  # 10个商品各自的trial顺序
         })
     return render_template('experiment.html',
                            name=session['name'],
