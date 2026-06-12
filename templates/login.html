@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>消费者价值感知实验</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "PingFang SC", sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      width: 380px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    h1 { font-size: 20px; color: #1a1a1a; margin-bottom: 8px; }
+    p  { font-size: 14px; color: #666; margin-bottom: 28px; }
+    label { font-size: 14px; color: #333; display: block; margin-bottom: 6px; }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+      outline: none;
+      transition: border 0.2s;
+    }
+    input[type="text"]:focus { border-color: #4f6ef7; }
+    .error { color: #e53e3e; font-size: 13px; margin-top: 6px; }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 12px;
+      background: #4f6ef7;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover { background: #3a56d4; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>消费者价值感知实验</h1>
+    <p>请输入您的姓名或编号以开始实验</p>
+    <form method="POST">
+      <label>姓名 / 编号</label>
+      <input type="text" name="name" placeholder="例如：张三 或 P001" autofocus>
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      <button type="submit">开始实验</button>
+    </form>
+  </div>
+</body>
+</html>

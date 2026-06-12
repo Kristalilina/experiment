@@ -1,0 +1,5 @@
+experiment.db
+counter.json
+__pycache__/
+*.pyc
+.env

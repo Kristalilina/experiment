@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>实验分配结果</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "PingFang SC", sans-serif;
+      background: #f5f5f5;
+      padding: 40px 20px;
+    }
+    .container { max-width: 700px; margin: 0 auto; }
+    .header {
+      background: white;
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .header h1 { font-size: 18px; color: #1a1a1a; }
+    .header p  { font-size: 14px; color: #666; margin-top: 6px; }
+    .badge {
+      display: inline-block;
+      background: #ebf0ff;
+      color: #4f6ef7;
+      font-size: 13px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-top: 8px;
+    }
+    .block-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .block-num {
+      font-size: 24px;
+      font-weight: 700;
+      color: #4f6ef7;
+      min-width: 36px;
+    }
+    .block-info { flex: 1; }
+    .block-info h2 { font-size: 15px; color: #1a1a1a; margin-bottom: 4px; }
+    .block-info p  { font-size: 13px; color: #888; }
+    .tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag {
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .tag-set   { background: #f0faf0; color: #38a169; }
+    .tag-level { background: #fff8e6; color: #b7791f; }
+    .tag-wf    { background: #f0f4ff; color: #4f6ef7; }
+    .note { font-size: 12px; color: #aaa; margin-top: 16px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>您好，{{ name }}</h1>
+      <p>系统已为您分配实验方案</p>
+      <span class="badge">被试编号 #{{ display_number }}｜循环位置 {{ position }}/5</span>
+    </div>
+
+    {% for b in blocks %}
+    <div class="block-card">
+      <div class="block-num">B{{ b.block_num }}</div>
+      <div class="block-info">
+        <h2>Block {{ b.block_num }}</h2>
+        <p>商品集 × 礼貌等级</p>
+        <div class="tags">
+          <span class="tag tag-set">{{ b.set }}</span>
+          <span class="tag tag-level">{{ b.level }}（{{ b.level_label }}）</span>
+          {% for wf in b.workflows %}
+          <span class="tag tag-wf">{{ wf }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    <p class="note">以上为调试视图，正式版本不会显示分配详情</p>
+  </div>
+</body>
+</html>
