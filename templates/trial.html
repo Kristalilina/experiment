@@ -64,7 +64,7 @@
 </div>
 
 <script>
-const DIFY_KEY = "{{ dify_key }}";
+const WORKFLOW    = "{{ workflow }}";
 const PRODUCT_NAME = "{{ product.name }}";
 
 async function askDify() {
@@ -75,39 +75,25 @@ async function askDify() {
   document.getElementById('loading').style.display = 'block';
   document.getElementById('responseBox').style.display = 'none';
 
-  const fullQuery = `商品：${PRODUCT_NAME}\n用户问题：${q}`;
-
   try {
-    // 先尝试 workflow API，再 fallback 到 chat-messages
-    let answer = await callWorkflow(fullQuery);
-    showResponse(q, answer);
+    const res = await fetch('/api/ask', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        workflow: WORKFLOW,
+        product:  PRODUCT_NAME,
+        question: q
+      })
+    });
+    const data = await res.json();
+    if (data.error || !data.answer) throw new Error(data.error || 'empty');
+    showResponse(q, data.answer);
   } catch(e) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('askBtn').disabled = false;
     document.getElementById('errMsg').textContent = '获取回复失败，请重试';
     document.getElementById('errMsg').style.display = 'block';
   }
-}
-
-async function callWorkflow(query) {
-  const res = await fetch('https://api.dify.ai/v1/workflows/run', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${DIFY_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      inputs: { query: query },
-      response_mode: 'blocking',
-      user: 'participant'
-    })
-  });
-  const data = await res.json();
-  // workflow 返回格式
-  if (data.data?.outputs?.text) return data.data.outputs.text;
-  // chatflow 返回格式（fallback）
-  if (data.answer) return data.answer;
-  throw new Error('no answer');
 }
 
 function showResponse(question, answer) {

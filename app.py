@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 import random, sqlite3, os, json
+import urllib.request, urllib.error
 
 app = Flask(__name__)
 app.secret_key = 'experiment_secret_2024'
@@ -174,32 +175,14 @@ def login():
         return redirect(url_for('pre_rating'))
     return render_template('login.html', error=None)
 
-@app.route('/pre-rating', methods=['GET','POST'])
+@app.route('/pre-rating', methods=['GET'])
 def pre_rating():
     if 'pid' not in session: return redirect(url_for('login'))
     plan = build_plan(session['pid'])
-    products = plan['pre_rating']
-    idx = session.get('pr_idx', 0)
-
-    if request.method == 'POST':
-        value = request.form.get('value', 0)
-        product_name = request.form.get('product_name')
-        conn = sqlite3.connect(DB_FILE)
-        conn.execute('INSERT INTO pre_ratings (participant_id,product_name,value_rating) VALUES (?,?,?)',
-                     (session['pid'], product_name, value))
-        conn.commit(); conn.close()
-        idx += 1
-        session['pr_idx'] = idx
-        if idx >= len(products):
-            session['phase'] = 'practice'
-            session['p_idx'] = 0
-            session['step']  = 'trial1'
-            return redirect(url_for('experiment'))
-        return redirect(url_for('pre_rating'))
-
-    product = products[idx]
+    products_json = json.dumps(plan['pre_rating'], ensure_ascii=False)
     return render_template('pre_rating.html',
-        product=product, idx=idx+1, total=len(products))
+        products_json=products_json,
+        total=len(plan['pre_rating']))
 
 @app.route('/experiment', methods=['GET','POST'])
 def experiment():
@@ -282,7 +265,7 @@ def experiment():
     if step in ('trial1', 'trial2'):
         return render_template('trial.html',
             product=product, trial_num=trial_num,
-            workflow=workflow, dify_key=DIFY_KEYS[workflow])
+            workflow=workflow)
     elif step == 'politeness':
         return render_template('politeness_rating.html', product=product)
     elif step == 'value':
@@ -291,6 +274,87 @@ def experiment():
 @app.route('/complete')
 def complete():
     return render_template('complete.html', name=session.get('pname',''))
+
+@app.route('/api/ask', methods=['POST'])
+def api_ask():
+    """后端代理：转发请求到 Dify，避免浏览器 CORS 问题"""
+    if 'pid' not in session:
+        return jsonify({'error': 'not logged in'}), 401
+    data = request.get_json()
+    workflow  = data.get('workflow')
+    product   = data.get('product')
+    question  = data.get('question')
+    api_key   = DIFY_KEYS.get(workflow)
+    if not api_key:
+        return jsonify({'error': 'invalid workflow'}), 400
+
+    full_query = f"商品：{product}\n用户问题：{question}"
+    payload = json.dumps({
+        'inputs': {'query': full_query},
+        'response_mode': 'blocking',
+        'user': f"p{session['pid']}"
+    }).encode('utf-8')
+
+    req = urllib.request.Request(
+        'https://api.dify.ai/v1/workflows/run',
+        data=payload,
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+        }
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read())
+        # workflow 格式
+        answer = (result.get('data', {}).get('outputs', {}).get('text')
+                  or result.get('answer', ''))
+        # 若 workflow 无输出，尝试 chatflow 端点
+        if not answer:
+            raise ValueError('empty answer, try chatflow')
+        return jsonify({'answer': answer})
+    except Exception:
+        # fallback：尝试 chatflow 端点
+        try:
+            payload2 = json.dumps({
+                'inputs': {},
+                'query': full_query,
+                'response_mode': 'blocking',
+                'conversation_id': '',
+                'user': f"p{session['pid']}"
+            }).encode('utf-8')
+            req2 = urllib.request.Request(
+                'https://api.dify.ai/v1/chat-messages',
+                data=payload2,
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'Content-Type': 'application/json',
+                }
+            )
+            with urllib.request.urlopen(req2, timeout=30) as resp2:
+                result2 = json.loads(resp2.read())
+            answer2 = result2.get('answer', '')
+            return jsonify({'answer': answer2})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+@app.route('/api/pre-rating', methods=['POST'])
+def api_pre_rating():
+    """批量保存前测估价（JavaScript 一次性提交）"""
+    if 'pid' not in session:
+        return jsonify({'error': 'not logged in'}), 401
+    ratings = request.get_json()  # [{name, value}, ...]
+    conn = sqlite3.connect(DB_FILE)
+    for r in ratings:
+        conn.execute(
+            'INSERT INTO pre_ratings (participant_id,product_name,value_rating) VALUES (?,?,?)',
+            (session['pid'], r['name'], r['value'])
+        )
+    conn.commit(); conn.close()
+    session['phase']  = 'practice'
+    session['p_idx']  = 0
+    session['step']   = 'trial1'
+    return jsonify({'redirect': url_for('experiment')})
 
 @app.route('/reset')
 def reset():
