@@ -91,7 +91,8 @@ async function askDify() {
   } catch(e) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('askBtn').disabled = false;
-    document.getElementById('errMsg').textContent = '获取回复失败，请重试';
+    const detail = data?.err || data?.workflow_result || JSON.stringify(data);
+    document.getElementById('errMsg').textContent = '获取回复失败：' + detail;
     document.getElementById('errMsg').style.display = 'block';
   }
 }

@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 import random, sqlite3, os, json
 import urllib.request, urllib.error
+import requests as req_lib
 
 app = Flask(__name__)
 app.secret_key = 'experiment_secret_2024'
@@ -277,66 +278,70 @@ def complete():
 
 @app.route('/api/ask', methods=['POST'])
 def api_ask():
-    """后端代理：转发请求到 Dify，避免浏览器 CORS 问题"""
     if 'pid' not in session:
         return jsonify({'error': 'not logged in'}), 401
-    data = request.get_json()
-    workflow  = data.get('workflow')
-    product   = data.get('product')
-    question  = data.get('question')
-    api_key   = DIFY_KEYS.get(workflow)
+    data     = request.get_json()
+    workflow = data.get('workflow')
+    product  = data.get('product')
+    question = data.get('question')
+    api_key  = DIFY_KEYS.get(workflow)
     if not api_key:
         return jsonify({'error': 'invalid workflow'}), 400
 
     full_query = f"商品：{product}\n用户问题：{question}"
-    payload = json.dumps({
-        'inputs': {'query': full_query},
-        'response_mode': 'blocking',
-        'user': f"p{session['pid']}"
-    }).encode('utf-8')
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json',
+    }
+    # PythonAnywhere 免费版需要通过代理访问外部网络
+    proxies = {
+        'http':  'http://proxy.server:3128',
+        'https': 'http://proxy.server:3128',
+    }
 
-    req = urllib.request.Request(
+    def try_request(url, payload):
+        try:
+            r = req_lib.post(url, json=payload, headers=headers,
+                             proxies=proxies, timeout=30)
+            return r.json(), None
+        except Exception as e:
+            # 本地调试时无代理，直连
+            try:
+                r = req_lib.post(url, json=payload, headers=headers, timeout=30)
+                return r.json(), None
+            except Exception as e2:
+                return None, str(e2)
+
+    # 先试 workflow 端点
+    result, err = try_request(
         'https://api.dify.ai/v1/workflows/run',
-        data=payload,
-        headers={
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json',
-        }
+        {'inputs': {'query': full_query}, 'response_mode': 'blocking',
+         'user': f"p{session['pid']}"}
     )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read())
-        # workflow 格式
+    if result:
         answer = (result.get('data', {}).get('outputs', {}).get('text')
                   or result.get('answer', ''))
-        # 若 workflow 无输出，尝试 chatflow 端点
-        if not answer:
-            raise ValueError('empty answer, try chatflow')
-        return jsonify({'answer': answer})
-    except Exception:
-        # fallback：尝试 chatflow 端点
-        try:
-            payload2 = json.dumps({
-                'inputs': {},
-                'query': full_query,
-                'response_mode': 'blocking',
-                'conversation_id': '',
-                'user': f"p{session['pid']}"
-            }).encode('utf-8')
-            req2 = urllib.request.Request(
-                'https://api.dify.ai/v1/chat-messages',
-                data=payload2,
-                headers={
-                    'Authorization': f'Bearer {api_key}',
-                    'Content-Type': 'application/json',
-                }
-            )
-            with urllib.request.urlopen(req2, timeout=30) as resp2:
-                result2 = json.loads(resp2.read())
-            answer2 = result2.get('answer', '')
+        if answer:
+            return jsonify({'answer': answer})
+
+    # fallback：试 chatflow 端点
+    result2, err2 = try_request(
+        'https://api.dify.ai/v1/chat-messages',
+        {'inputs': {}, 'query': full_query, 'response_mode': 'blocking',
+         'conversation_id': '', 'user': f"p{session['pid']}"}
+    )
+    if result2:
+        answer2 = result2.get('answer', '')
+        if answer2:
             return jsonify({'answer': answer2})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+
+    # 两个端点都失败，返回详细错误供调试
+    return jsonify({
+        'error': 'dify call failed',
+        'workflow_result': result,
+        'chatflow_result': result2,
+        'err': err or err2
+    }), 500
 
 @app.route('/api/pre-rating', methods=['POST'])
 def api_pre_rating():
