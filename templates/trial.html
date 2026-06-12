@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>实验 - {{ product.name }}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f5f5f5;
+         display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:24px 16px}
+    .card{background:white;border-radius:16px;padding:28px;width:100%;max-width:540px;
+          box-shadow:0 4px 20px rgba(0,0,0,0.08)}
+    .tag{display:inline-block;background:#ebf0ff;color:#4f6ef7;font-size:12px;
+         padding:3px 10px;border-radius:20px;margin-bottom:14px}
+    img{width:100%;max-height:240px;object-fit:contain;border-radius:10px;background:#fafafa}
+    h2{font-size:18px;color:#1a1a1a;margin:14px 0 6px;text-align:center}
+    .divider{border:none;border-top:1px solid #f0f0f0;margin:20px 0}
+    label{font-size:14px;color:#555;display:block;margin-bottom:8px}
+    textarea{width:100%;border:1px solid #ddd;border-radius:10px;padding:12px;
+             font-size:14px;font-family:inherit;resize:vertical;min-height:80px;outline:none}
+    textarea:focus{border-color:#4f6ef7}
+    .response-box{background:#f8f9ff;border-radius:10px;padding:16px;
+                  font-size:14px;line-height:1.7;color:#333;min-height:60px;
+                  border:1px solid #e0e8ff;display:none;margin-top:12px}
+    .loading{color:#999;font-size:13px;display:none;margin-top:8px;text-align:center}
+    .error-msg{color:#e53e3e;font-size:13px;display:none;margin-top:8px}
+    button.ask-btn{margin-top:12px;width:100%;padding:12px;background:#4f6ef7;color:white;
+                   border:none;border-radius:10px;font-size:15px;cursor:pointer}
+    button.ask-btn:hover{background:#3a56d4}
+    button.ask-btn:disabled{background:#aaa;cursor:not-allowed}
+    .next-wrap{margin-top:16px;display:none}
+    .next-wrap button{width:100%;padding:12px;background:#38a169;color:white;
+                      border:none;border-radius:10px;font-size:15px;cursor:pointer}
+    .next-wrap button:hover{background:#276749}
+  </style>
+</head>
+<body>
+<div class="card">
+  <span class="tag">Trial {{ trial_num }} / 2</span>
+
+  <img src="{{ product.img }}" alt="{{ product.name }}"
+       onerror="this.src='https://via.placeholder.com/400x240?text={{ product.name }}'">
+  <h2>{{ product.name }}</h2>
+
+  <hr class="divider">
+
+  <label>请向客服提问（关于这个商品）：</label>
+  <textarea id="question" placeholder="例如：这个商品的质量怎么样？"></textarea>
+  <div class="error-msg" id="errMsg">请先输入问题</div>
+
+  <button class="ask-btn" id="askBtn" onclick="askDify()">发送问题</button>
+
+  <div class="loading" id="loading">客服回复中，请稍候…</div>
+  <div class="response-box" id="responseBox"></div>
+
+  <!-- 提交到服务器 -->
+  <div class="next-wrap" id="nextWrap">
+    <form method="POST" id="submitForm">
+      <input type="hidden" name="workflow"  value="{{ workflow }}">
+      <input type="hidden" name="question"  id="hiddenQ">
+      <input type="hidden" name="response"  id="hiddenR">
+      <button type="submit">继续</button>
+    </form>
+  </div>
+</div>
+
+<script>
+const DIFY_KEY = "{{ dify_key }}";
+const PRODUCT_NAME = "{{ product.name }}";
+
+async function askDify() {
+  const q = document.getElementById('question').value.trim();
+  if (!q) { document.getElementById('errMsg').style.display='block'; return; }
+  document.getElementById('errMsg').style.display='none';
+  document.getElementById('askBtn').disabled = true;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('responseBox').style.display = 'none';
+
+  const fullQuery = `商品：${PRODUCT_NAME}\n用户问题：${q}`;
+
+  try {
+    // 先尝试 workflow API，再 fallback 到 chat-messages
+    let answer = await callWorkflow(fullQuery);
+    showResponse(q, answer);
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('askBtn').disabled = false;
+    document.getElementById('errMsg').textContent = '获取回复失败，请重试';
+    document.getElementById('errMsg').style.display = 'block';
+  }
+}
+
+async function callWorkflow(query) {
+  const res = await fetch('https://api.dify.ai/v1/workflows/run', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${DIFY_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      inputs: { query: query },
+      response_mode: 'blocking',
+      user: 'participant'
+    })
+  });
+  const data = await res.json();
+  // workflow 返回格式
+  if (data.data?.outputs?.text) return data.data.outputs.text;
+  // chatflow 返回格式（fallback）
+  if (data.answer) return data.answer;
+  throw new Error('no answer');
+}
+
+function showResponse(question, answer) {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('responseBox').textContent = answer;
+  document.getElementById('responseBox').style.display = 'block';
+  document.getElementById('hiddenQ').value = question;
+  document.getElementById('hiddenR').value = answer;
+  document.getElementById('nextWrap').style.display = 'block';
+  document.getElementById('askBtn').style.display = 'none';
+  document.getElementById('question').disabled = true;
+}
+</script>
+</body>
+</html>

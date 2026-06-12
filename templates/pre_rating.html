@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>前测估价 {{ idx }}/{{ total }}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f5f5f5;
+         display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
+    .card{background:white;border-radius:16px;padding:32px;width:100%;max-width:480px;
+          box-shadow:0 4px 20px rgba(0,0,0,0.08)}
+    .progress{font-size:13px;color:#999;margin-bottom:16px;text-align:center}
+    .bar-wrap{background:#eee;border-radius:99px;height:6px;margin-bottom:24px}
+    .bar{background:#4f6ef7;height:6px;border-radius:99px;transition:width .3s}
+    img{width:100%;max-height:260px;object-fit:contain;border-radius:10px;background:#fafafa}
+    h2{font-size:18px;color:#1a1a1a;margin:16px 0 8px;text-align:center}
+    .label{font-size:13px;color:#666;text-align:center;margin-bottom:20px}
+    .slider-wrap{padding:8px 0 4px}
+    input[type=range]{width:100%;accent-color:#4f6ef7;cursor:pointer}
+    .value-display{text-align:center;font-size:28px;font-weight:700;color:#4f6ef7;margin:8px 0 4px}
+    .unit{text-align:center;font-size:13px;color:#999;margin-bottom:24px}
+    button{width:100%;padding:13px;background:#4f6ef7;color:white;border:none;
+           border-radius:10px;font-size:15px;cursor:pointer}
+    button:hover{background:#3a56d4}
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="progress">{{ idx }} / {{ total }}</div>
+  <div class="bar-wrap"><div class="bar" style="width:{{ (idx/total*100)|int }}%"></div></div>
+
+  <img src="{{ product.img }}" alt="{{ product.name }}"
+       onerror="this.src='https://via.placeholder.com/400x260?text={{ product.name }}'">
+  <h2>{{ product.name }}</h2>
+  <div class="label">您认为这个商品值多少代币？</div>
+
+  <form method="POST">
+    <input type="hidden" name="product_name" value="{{ product.name }}">
+    <div class="slider-wrap">
+      <input type="range" name="value" min="1" max="500" value="250" id="slider"
+             oninput="document.getElementById('val').textContent=this.value">
+    </div>
+    <div class="value-display" id="val">250</div>
+    <div class="unit">代币</div>
+    <button type="submit">下一个</button>
+  </form>
+</div>
+</body>
+</html>

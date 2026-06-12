@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>礼貌感知评分</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f5f5f5;
+         display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}
+    .card{background:white;border-radius:16px;padding:32px;width:100%;max-width:480px;
+          box-shadow:0 4px 20px rgba(0,0,0,0.08)}
+    img{width:100%;max-height:200px;object-fit:contain;border-radius:10px;background:#fafafa}
+    h2{font-size:17px;color:#1a1a1a;margin:14px 0 6px;text-align:center}
+    .question{font-size:15px;color:#333;text-align:center;margin:20px 0 24px;line-height:1.6}
+    .scale{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px}
+    .scale label{flex:1;text-align:center;cursor:pointer}
+    .scale input[type=radio]{display:none}
+    .scale span{display:block;border:2px solid #ddd;border-radius:10px;padding:10px 4px;
+                font-size:15px;font-weight:600;color:#666;transition:all .15s}
+    .scale input:checked + span{background:#4f6ef7;border-color:#4f6ef7;color:white}
+    .scale label:hover span{border-color:#4f6ef7;color:#4f6ef7}
+    .labels{display:flex;justify-content:space-between;font-size:11px;color:#999;margin-bottom:24px;padding:0 2px}
+    button{width:100%;padding:13px;background:#4f6ef7;color:white;border:none;
+           border-radius:10px;font-size:15px;cursor:pointer}
+    button:hover{background:#3a56d4}
+  </style>
+</head>
+<body>
+<div class="card">
+  <img src="{{ product.img }}" alt="{{ product.name }}">
+  <h2>{{ product.name }}</h2>
+
+  <div class="question">您认为刚才的客服<br>礼貌程度如何？</div>
+
+  <form method="POST">
+    <div class="scale">
+      {% for i in range(1,8) %}
+      <label>
+        <input type="radio" name="politeness_rating" value="{{ i }}" required>
+        <span>{{ i }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="labels">
+      <span>非常不礼貌</span>
+      <span>非常礼貌</span>
+    </div>
+    <button type="submit">确认</button>
+  </form>
+</div>
+</body>
+</html>
